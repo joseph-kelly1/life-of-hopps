@@ -8,6 +8,7 @@ pygame.init()
 
 screen = pygame.display.set_mode((c.WIDTH, c.HEIGHT))
 pygame.display.set_caption("Life of Hopps")
+pygame.display.set_icon(pygame.image.load("assets/life-of-hopps-icon.png"))
 
 clock = pygame.time.Clock()
 
@@ -20,8 +21,14 @@ class Hopps(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.image.load("assets/Hopps.png").convert_alpha()
         self.pos = pygame.math.Vector2(c.HOPPS_START_POS)
-        # self.rect = self.image.get_rect(center=self.pos)
+        self.rect = self.image.get_rect(topleft=self.pos)
         self.speed = 8
+
+    def get_angle(self):
+        self.mouse_coords = pygame.mouse.get_pos()
+        self.mouse_x = (self.mouse_coords[0] - self.rect.centerx)
+        self.mouse_y = (self.mouse_coords[1] - self.rect.centery)
+        self.angle = math.degrees(math.atan2(self.mouse_y, self.mouse_x))
 
     def user_input(self):
         self.vel_x = 0
@@ -49,10 +56,12 @@ class Hopps(pygame.sprite.Sprite):
 
     def move(self):
         self.pos += pygame.math.Vector2(self.vel_x, self.vel_y)
+        self.rect.topleft = self.pos
+
     def update(self):
         self.user_input()
         self.move()
-
+        self.get_angle()
 
 hopps = Hopps()
 
@@ -64,6 +73,8 @@ while run:
 
     screen.blit(hopps.image, hopps.pos)
     hopps.update()
+
+    pygame.draw.rect(screen, "black", (hopps.rect.topleft[0], hopps.rect.topleft[1], hopps.rect.width, hopps.rect.height), width=2)
 
     for event in pygame.event.get():
         # quit program
