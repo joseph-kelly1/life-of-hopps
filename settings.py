@@ -1,12 +1,9 @@
 # game variables
-
-WIDTH = 1024
-HEIGHT = 768
 FPS = 60
 
 # player settings
 
-HOPPS_START_POS = (500, 300)
+HOPPS_START_POS = (1000, 400)
 HOPPS_SPEED = 8
 HOPPS_SCALE = 1.2
 

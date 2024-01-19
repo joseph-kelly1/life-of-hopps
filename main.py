@@ -6,6 +6,9 @@ import math
 
 pygame.init()
 
+WIDTH = pygame.display.Info().current_w
+HEIGHT = pygame.display.Info().current_h - 100
+
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.SCALED, vsync=1)
 pygame.display.set_caption("Life of Hopps")
 pygame.display.set_icon(pygame.image.load("assets/life-of-hopps-icon.png"))
@@ -31,8 +34,8 @@ class Hopps(pygame.sprite.Sprite):
 
     def get_angle(self):
         self.mouse_coords = pygame.mouse.get_pos()
-        self.mouse_x = (self.mouse_coords[0] - self.rect.centerx)
-        self.mouse_y = (self.mouse_coords[1] - self.rect.centery)
+        self.mouse_x = (self.mouse_coords[0] - WIDTH // 2)
+        self.mouse_y = (self.mouse_coords[1] - HEIGHT // 2)
         self.angle = math.degrees(math.atan2(self.mouse_y, self.mouse_x))
 
     def user_input(self):
@@ -56,6 +59,15 @@ class Hopps(pygame.sprite.Sprite):
         if self.vel_x != 0 and self.vel_y != 0:
             self.vel_x /= math.sqrt(2)
             self.vel_y /= math.sqrt(2)
+
+        # boundaries
+        if ((keys[pygame.K_w] or keys[pygame.K_UP]) and hopps.pos[1] <= 90) \
+                or ((keys[pygame.K_s] or keys[pygame.K_DOWN]) and hopps.pos[1] >= background.get_height() - hopps.image.get_height()):
+            self.vel_y = 0
+
+        if ((keys[pygame.K_a] or keys[pygame.K_LEFT]) and hopps.pos[0] <= -9) \
+                or ((keys[pygame.K_d] or keys[pygame.K_RIGHT]) and hopps.pos[0] >= background.get_width() - hopps.image.get_width() + 9):
+            self.vel_x = 0
 
         # Shooting
         if pygame.mouse.get_pressed() == (1, 0, 0) or keys[pygame.K_SPACE]:
