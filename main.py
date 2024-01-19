@@ -18,6 +18,32 @@ clock = pygame.time.Clock()
 # load images
 background = pygame.image.load('assets/loh-bg-v3.png').convert()
 
+# load hopps spritesheet
+#player images
+all_hopps = pygame.image.load("assets/All_Hopps.png")
+
+sprite_width, sprite_height = 64, 64
+
+player_sprites = {
+    "UP_RIGHT_HOPPS": None,
+    "UP_LEFT_HOPPS": None,
+    "DOWN_RIGHT_HOPPS": None,
+    "DOWN_LEFT_HOPPS": None,
+    "UP_HOPPS": None,
+    "DOWN_HOPPS": None,
+    "RIGHT_HOPPS": None,
+    "LEFT_HOPPS": None,
+}
+
+for row in range(2):
+    for col in range(4):
+        x = col * sprite_width
+        y = row * sprite_height
+        sprite_rect = pygame.Rect(x, y, sprite_width, sprite_height)
+        key = list(player_sprites.keys())[len(player_sprites) - (row * 4 + col + 1)]
+        new_sprite = pygame.transform.rotozoom(all_hopps.subsurface(sprite_rect).convert_alpha(), 0, HOPPS_SCALE)
+        player_sprites[key] = new_sprite
+
 
 class Hopps(pygame.sprite.Sprite):
     def __init__(self):
@@ -26,7 +52,7 @@ class Hopps(pygame.sprite.Sprite):
         self.image = pygame.transform.rotozoom(self.image, 0, HOPPS_SCALE)
         self.pos = pygame.math.Vector2(HOPPS_START_POS)
         self.rect = self.image.get_rect(topleft=self.pos)
-        self.speed = 8
+        self.speed = HOPPS_SPEED
         self.shoot = False
         self.shoot_cooldown = 0
         self.vel_x = 0
@@ -45,18 +71,31 @@ class Hopps(pygame.sprite.Sprite):
         # movement input
         if keys[pygame.K_w] or keys[pygame.K_UP]:
             self.vel_y = -HOPPS_SPEED
+            self.image = player_sprites["UP_HOPPS"]
         if keys[pygame.K_s] or keys[pygame.K_DOWN]:
             self.vel_y = HOPPS_SPEED
+            self.image = player_sprites["DOWN_HOPPS"]
         if keys[pygame.K_a] or keys[pygame.K_LEFT]:
             self.vel_x = -HOPPS_SPEED
+            self.image = player_sprites["LEFT_HOPPS"]
         if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
             self.vel_x = HOPPS_SPEED
+            self.image = player_sprites["RIGHT_HOPPS"]
 
         if not(keys[pygame.K_w] or keys[pygame.K_UP]) and not(keys[pygame.K_s] or keys[pygame.K_DOWN]) and not(keys[pygame.K_a] or keys[pygame.K_LEFT]) and not(keys[pygame.K_d] or keys[pygame.K_RIGHT]):
             self.vel_x = 0
             self.vel_y = 0
 
         if self.vel_x != 0 and self.vel_y != 0:
+            if (keys[pygame.K_w] or keys[pygame.K_UP]) and (keys[pygame.K_a] or keys[pygame.K_LEFT]):
+                self.image = player_sprites["UP_LEFT_HOPPS"]
+            if (keys[pygame.K_w] or keys[pygame.K_UP]) and (keys[pygame.K_d] or keys[pygame.K_RIGHT]):
+                self.image = player_sprites["UP_RIGHT_HOPPS"]
+            if (keys[pygame.K_s] or keys[pygame.K_DOWN]) and (keys[pygame.K_a] or keys[pygame.K_LEFT]):
+                self.image = player_sprites["DOWN_LEFT_HOPPS"]
+            if (keys[pygame.K_s] or keys[pygame.K_DOWN]) and (keys[pygame.K_d] or keys[pygame.K_RIGHT]):
+                self.image = player_sprites["DOWN_RIGHT_HOPPS"]
+
             self.vel_x /= math.sqrt(2)
             self.vel_y /= math.sqrt(2)
 
@@ -87,7 +126,6 @@ class Hopps(pygame.sprite.Sprite):
     def move(self):
         self.rect.topleft = self.pos
         self.pos += pygame.math.Vector2(self.vel_x, self.vel_y)
-
     def update(self):
         self.move()
         self.user_input()
@@ -108,7 +146,7 @@ class Bullet(pygame.sprite.Sprite):
         self.x = x
         self.y = y
         self.angle = angle
-        self.speed = 10
+        self.speed = BULLET_SPEED
         self.x_vel = math.cos(self.angle * (2 * math.pi / 360)) * self.speed
         self.y_vel = math.sin(self.angle * (2 * math.pi / 360)) * self.speed
         self.bullet_lifetime = BULLET_LIFETIME
