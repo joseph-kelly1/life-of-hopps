@@ -73,6 +73,6 @@ while run:
             run = False
 
     clock.tick(c.FPS)
-    pygame.display.update()
+    pygame.display.flip()
 
 pygame.quit()
