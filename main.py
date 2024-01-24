@@ -16,10 +16,10 @@ pygame.display.set_icon(pygame.image.load("assets/life-of-hopps-icon.png"))
 clock = pygame.time.Clock()
 
 # load images
-background = pygame.image.load('assets/loh-bg-v3.png').convert()
+background = pygame.image.load('assets/loh-bg-v4.png').convert()
+ui_bar = pygame.image.load('assets/loh-ui-bar.png').convert()
 
 # load hopps spritesheet
-#player images
 all_hopps = pygame.image.load("assets/All_Hopps.png")
 
 sprite_width, sprite_height = 64, 64
@@ -43,6 +43,16 @@ for row in range(2):
         key = list(player_sprites.keys())[len(player_sprites) - (row * 4 + col + 1)]
         new_sprite = pygame.transform.rotozoom(all_hopps.subsurface(sprite_rect).convert_alpha(), 0, HOPPS_SCALE)
         player_sprites[key] = new_sprite
+
+
+# FONTS
+def draw_text(text, font, text_col, x, y):
+    img = font.render(text, True, text_col)
+    screen.blit(img, (x, y))
+
+font = pygame.font.SysFont("arialblack", 40)
+
+TEXT_COLOR = (255, 255 ,255)
 
 
 class Hopps(pygame.sprite.Sprite):
@@ -82,7 +92,8 @@ class Hopps(pygame.sprite.Sprite):
             self.vel_x = HOPPS_SPEED
             self.image = player_sprites["RIGHT_HOPPS"]
 
-        if not(keys[pygame.K_w] or keys[pygame.K_UP]) and not(keys[pygame.K_s] or keys[pygame.K_DOWN]) and not(keys[pygame.K_a] or keys[pygame.K_LEFT]) and not(keys[pygame.K_d] or keys[pygame.K_RIGHT]):
+        if not (keys[pygame.K_w] or keys[pygame.K_UP]) and not (keys[pygame.K_s] or keys[pygame.K_DOWN]) and not (
+                keys[pygame.K_a] or keys[pygame.K_LEFT]) and not (keys[pygame.K_d] or keys[pygame.K_RIGHT]):
             self.vel_x = 0
             self.vel_y = 0
 
@@ -101,11 +112,13 @@ class Hopps(pygame.sprite.Sprite):
 
         # boundaries
         if ((keys[pygame.K_w] or keys[pygame.K_UP]) and hopps.pos[1] <= 90) \
-                or ((keys[pygame.K_s] or keys[pygame.K_DOWN]) and hopps.pos[1] >= background.get_height() - hopps.image.get_height()):
+                or ((keys[pygame.K_s] or keys[pygame.K_DOWN]) and hopps.pos[
+            1] >= background.get_height() - hopps.image.get_height()):
             self.vel_y = 0
 
         if ((keys[pygame.K_a] or keys[pygame.K_LEFT]) and hopps.pos[0] <= -9) \
-                or ((keys[pygame.K_d] or keys[pygame.K_RIGHT]) and hopps.pos[0] >= background.get_width() - hopps.image.get_width() + 9):
+                or ((keys[pygame.K_d] or keys[pygame.K_RIGHT]) and hopps.pos[
+            0] >= background.get_width() - hopps.image.get_width() + 9):
             self.vel_x = 0
 
         # Shooting
@@ -119,13 +132,15 @@ class Hopps(pygame.sprite.Sprite):
         if self.shoot_cooldown == 0:
             self.shoot_cooldown = 20
             spawn_bullet_pos = self.pos
-            self.bullet = Bullet(spawn_bullet_pos[0] + (.5 * self.rect.width), spawn_bullet_pos[1] + (.5 * self.rect.height), self.angle)
+            self.bullet = Bullet(spawn_bullet_pos[0] + (.5 * self.rect.width),
+                                 spawn_bullet_pos[1] + (.5 * self.rect.height), self.angle)
             bullet_group.add(self.bullet)
             sprites_group.add(self.bullet)
 
     def move(self):
         self.rect.topleft = self.pos
         self.pos += pygame.math.Vector2(self.vel_x, self.vel_y)
+
     def update(self):
         self.move()
         self.user_input()
@@ -165,6 +180,7 @@ class Bullet(pygame.sprite.Sprite):
     def update(self):
         self.bullet_movement()
 
+
 class Camera(pygame.sprite.Group):
     def __init__(self):
         super().__init__()
@@ -187,24 +203,23 @@ class Camera(pygame.sprite.Group):
 camera = Camera()
 hopps = Hopps()
 
-
 sprites_group = pygame.sprite.Group()
 sprites_group.add(hopps)
 
 bullet_group = pygame.sprite.Group()
 
-
 run = True
 while run:
 
-    # pygame.draw.rect(screen, "black", hopps.rect, width=2)
 
-    # screen.blit(background, (0, 0))
+
     screen.fill((0, 0, 0))
 
     camera.custom_draw()
-    # sprites_group.draw(screen)
+    print(WIDTH)
+    screen.blit(ui_bar, ((2048-WIDTH)/-2, 0))
 
+    # draw_text("LIFE OF HOPPS", font, TEXT_COLOR, 160, 250)
 
     for event in pygame.event.get():
         # quit program
@@ -213,6 +228,7 @@ while run:
 
     sprites_group.update()
     hopps.update()
+    # pygame.draw.rect(screen, "black", hopps.rect, width=2)
 
     clock.tick(FPS)
     pygame.display.update()
