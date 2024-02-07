@@ -17,11 +17,12 @@ pygame.display.set_icon(pygame.image.load("assets/life-of-hopps-icon.png"))
 clock = pygame.time.Clock()
 
 # load images
-background = pygame.image.load('assets/loh-bg-v4.png').convert()
-ui_bar = pygame.image.load('assets/loh-ui-bar.png').convert()
+background = pygame.image.load('assets/loh-bg-v4.png').convert_alpha()
+ui_bar = pygame.image.load('assets/loh-ui-bar.png').convert_alpha()
+title_sheet = pygame.image.load('assets/loh_title-Sheet.png').convert_alpha()
 
 # load hopps spritesheet
-all_hopps = pygame.image.load("assets/All_Hopps.png")
+all_hopps = pygame.image.load("assets/All_Hopps.png").convert_alpha()
 
 sprite_width, sprite_height = 64, 64
 
@@ -44,6 +45,17 @@ for row in range(2):
         key = list(player_sprites.keys())[len(player_sprites) - (row * 4 + col + 1)]
         new_sprite = pygame.transform.rotozoom(all_hopps.subsurface(sprite_rect).convert_alpha(), 0, HOPPS_SCALE)
         player_sprites[key] = new_sprite
+
+
+# function for getting sprite sheet frames
+def get_frames(sheet, frame_width, frame_height):
+    frames = []
+    sheet_width, sheet_height = sheet.get_size()
+    for y in range(0, sheet_height, frame_height):
+        for x in range(0, sheet_width, frame_width):
+            frame = sheet.subsurface((x, y, frame_width, frame_height))
+            frames.append(frame)
+    return frames
 
 
 # FONTS
@@ -245,8 +257,17 @@ bullet_group = pygame.sprite.Group()
 
 
 def menu():
+    title_speed = pygame.time.Clock()
+
+    frames = get_frames(title_sheet, title_sheet.get_width(), 128)
+    frame_index = 0
+    frame_count = len(frames)
+
     while True:
         screen.fill((135, 206, 235))
+
+        current_frame = frames[frame_index]
+        screen.blit(current_frame, ((title_sheet.get_width() - WIDTH) / -2, 100))  # Adjust position as needed
 
         for event in pygame.event.get():
             # quit program
@@ -254,8 +275,10 @@ def menu():
                 pygame.quit()
                 sys.exit()
 
-        clock.tick(FPS)
-        pygame.display.update()
+        title_speed.tick(10)
+        pygame.display.flip()
+
+        frame_index = (frame_index + 1) % frame_count
 
 
 def run():
