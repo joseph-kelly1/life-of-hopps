@@ -1,4 +1,5 @@
 import pygame
+import sys
 from settings import *
 import math
 
@@ -50,9 +51,10 @@ def draw_text(text, font, text_col, x, y):
     img = font.render(text, True, text_col)
     screen.blit(img, (x, y))
 
+
 font = pygame.font.SysFont("arialblack", 40)
 
-TEXT_COLOR = (255, 255 ,255)
+TEXT_COLOR = (255, 255, 255)
 
 
 class Hopps(pygame.sprite.Sprite):
@@ -111,7 +113,7 @@ class Hopps(pygame.sprite.Sprite):
             self.vel_y /= math.sqrt(2)
 
         # boundaries
-        if ((keys[pygame.K_w] or keys[pygame.K_UP]) and hopps.pos[1] <= 90) \
+        if ((keys[pygame.K_w] or keys[pygame.K_UP]) and hopps.pos[1] <= 9) \
                 or ((keys[pygame.K_s] or keys[pygame.K_DOWN]) and hopps.pos[
             1] >= background.get_height() - hopps.image.get_height()):
             self.vel_y = 0
@@ -181,6 +183,39 @@ class Bullet(pygame.sprite.Sprite):
         self.bullet_movement()
 
 
+class Button:
+    def __init__(self, image, pos, text_input, font, base_color, hovering_color):
+        self.image = image
+        self.x_pos = pos[0]
+        self.y_pos = pos[1]
+        self.font = font
+        self.base_color, self.hovering_color = base_color, hovering_color
+        self.text_input = text_input
+        self.text = self.font.render(self.text_input, True, self.base_color)
+        if self.image is None:
+            self.image = self.text
+        self.rect = self.image.get_rect(center=(self.x_pos, self.y_pos))
+        self.text_rect = self.text.get_rect(center=(self.x_pos, self.y_pos))
+
+    def update(self, screen):
+        if self.image is not None:
+            screen.blit(self.image, self.rect)
+        screen.blit(self.text, self.text_rect)
+
+    def checkForInput(self, position):
+        if position[0] in range(self.rect.left, self.rect.right) and position[1] in range(self.rect.top,
+                                                                                          self.rect.bottom):
+            return True
+        return False
+
+    def changeColor(self, position):
+        if position[0] in range(self.rect.left, self.rect.right) and position[1] in range(self.rect.top,
+                                                                                          self.rect.bottom):
+            self.text = self.font.render(self.text_input, True, self.hovering_color)
+        else:
+            self.text = self.font.render(self.text_input, True, self.base_color)
+
+
 class Camera(pygame.sprite.Group):
     def __init__(self):
         super().__init__()
@@ -208,29 +243,44 @@ sprites_group.add(hopps)
 
 bullet_group = pygame.sprite.Group()
 
-run = True
-while run:
+
+def menu():
+    while True:
+        screen.fill((135, 206, 235))
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+        clock.tick(FPS)
+        pygame.display.update()
 
 
+def run():
+    while True:
+        screen.fill((0, 0, 0))
 
-    screen.fill((0, 0, 0))
+        camera.custom_draw()
+        screen.blit(ui_bar, ((2048 - WIDTH) / -2, 0))
 
-    camera.custom_draw()
-    print(WIDTH)
-    screen.blit(ui_bar, ((2048-WIDTH)/-2, 0))
+        # draw_text("LIFE OF HOPPS", font, TEXT_COLOR, 160, 250)
 
-    # draw_text("LIFE OF HOPPS", font, TEXT_COLOR, 160, 250)
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
 
-    for event in pygame.event.get():
-        # quit program
-        if event.type == pygame.QUIT:
-            run = False
+        sprites_group.update()
+        hopps.update()
+        # pygame.draw.rect(screen, "black", hopps.rect, width=2)
 
-    sprites_group.update()
-    hopps.update()
-    # pygame.draw.rect(screen, "black", hopps.rect, width=2)
+        clock.tick(FPS)
+        pygame.display.update()
 
-    clock.tick(FPS)
-    pygame.display.update()
+
+menu()
 
 pygame.quit()
