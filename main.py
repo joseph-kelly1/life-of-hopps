@@ -64,7 +64,8 @@ def draw_text(text, font, text_col, x, y):
     screen.blit(img, (x, y))
 
 
-font = pygame.font.SysFont("arialblack", 40)
+def get_font(size):
+    return pygame.font.Font("assets/font.ttf", size)
 
 TEXT_COLOR = (255, 255, 255)
 
@@ -136,6 +137,7 @@ class Hopps(pygame.sprite.Sprite):
             self.vel_x = 0
 
         # Shooting
+        self.get_angle()
         if pygame.mouse.get_pressed() == (1, 0, 0) or keys[pygame.K_SPACE]:
             self.shoot = True
             self.is_shooting()
@@ -264,18 +266,31 @@ def menu():
     frame_count = len(frames)
 
     while True:
+        MENU_MOUSE_POS = pygame.mouse.get_pos()
+        hopps.shoot_cooldown = 100
+
         screen.fill((135, 206, 235))
 
         current_frame = frames[frame_index]
         screen.blit(current_frame, ((title_sheet.get_width() - WIDTH) / -2, 100))  # Adjust position as needed
+
+        PLAY_BUTTON = Button(None, pos=((WIDTH/2), 500),
+                             text_input="PLAY", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
+
+        PLAY_BUTTON.changeColor(MENU_MOUSE_POS)
+        PLAY_BUTTON.update(screen)
 
         for event in pygame.event.get():
             # quit program
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    run()
+                    hopps.shoot_cooldown = 0
 
-        title_speed.tick(10)
+        title_speed.tick(20)
         pygame.display.flip()
 
         frame_index = (frame_index + 1) % frame_count
@@ -295,7 +310,9 @@ def run():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    menu()
         sprites_group.update()
         hopps.update()
         # pygame.draw.rect(screen, "black", hopps.rect, width=2)
