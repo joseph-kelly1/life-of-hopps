@@ -67,6 +67,7 @@ def draw_text(text, font, text_col, x, y):
 def get_font(size):
     return pygame.font.Font("assets/font.ttf", size)
 
+
 TEXT_COLOR = (255, 255, 255)
 
 
@@ -197,6 +198,42 @@ class Bullet(pygame.sprite.Sprite):
         self.bullet_movement()
 
 
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, position):
+        super().__init__(enemy_group, sprites_group)
+        self.position = pygame.math.Vector2(position)
+        self.image = pygame.image.load('assets/spider.png').convert_alpha()
+        self.rect = self.image.get_rect()
+        # self.rect.center = position
+        self.rect.x = position[0]
+        self.rect.y = position[1]
+        self.direction = pygame.math.Vector2()
+        self.velocity = pygame.math.Vector2()
+        self.speed = ENEMY_SPEED
+
+    def hunt_player(self):
+        player_vector = pygame.math.Vector2(hopps.rect.center)
+        enemy_vector = pygame.math.Vector2(self.rect.center)
+        distance = self.get_distance(player_vector, enemy_vector)
+
+        if distance > 0:
+            self.direction = (player_vector - enemy_vector).normalize()
+        else:
+            self.direction = pygame.math.Vector2()
+
+        self.velocity = self.direction * self.speed
+        self.position += self.velocity
+
+        self.rect.centerx = self.position.x
+        self.rect.centery = self.position.y
+
+    def get_distance(self, vector_1, vector_2):
+        return (vector_1 - vector_2).magnitude()
+
+    def update(self):
+        self.hunt_player()
+
+
 class Button:
     def __init__(self, image, pos, text_input, font, base_color, hovering_color):
         self.image = image
@@ -249,13 +286,28 @@ class Camera(pygame.sprite.Group):
             screen.blit(sprite.image, offset_pos)
 
 
+sprites_group = pygame.sprite.Group()
+enemy_group = pygame.sprite.Group()
+bullet_group = pygame.sprite.Group()
+
 camera = Camera()
 hopps = Hopps()
+spider = Enemy((400, 400))
 
-sprites_group = pygame.sprite.Group()
 sprites_group.add(hopps)
+sprites_group.add(spider)
 
-bullet_group = pygame.sprite.Group()
+
+def restart():
+    global camera, hopps, sprites_group
+    hopps = Hopps()
+    hopps.shoot_cooldown = 100
+    spider = Enemy((400, 400))
+    camera = Camera()
+
+    sprites_group.empty()
+    sprites_group.add(hopps)
+    sprites_group.add(spider)
 
 
 def menu():
@@ -274,11 +326,23 @@ def menu():
         current_frame = frames[frame_index]
         screen.blit(current_frame, ((title_sheet.get_width() - WIDTH) / -2, 100))  # Adjust position as needed
 
-        PLAY_BUTTON = Button(None, pos=((WIDTH/2), 500),
-                             text_input="PLAY", font=get_font(75), base_color="#d7fcd4", hovering_color="White")
+        play_button = Button(None, pos=((WIDTH / 2), 380),
+                             text_input="PLAY", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
 
-        PLAY_BUTTON.changeColor(MENU_MOUSE_POS)
-        PLAY_BUTTON.update(screen)
+        controls_button = Button(None, pos=((WIDTH / 2), 530),
+                                 text_input="Controls", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
+
+        exit_button = Button(None, pos=((WIDTH / 2), 680),
+                             text_input="Exit", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
+
+        controls_button.changeColor(MENU_MOUSE_POS)
+        controls_button.update(screen)
+
+        play_button.changeColor(MENU_MOUSE_POS)
+        play_button.update(screen)
+
+        exit_button.changeColor(MENU_MOUSE_POS)
+        exit_button.update(screen)
 
         for event in pygame.event.get():
             # quit program
@@ -286,9 +350,12 @@ def menu():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                if play_button.checkForInput(MENU_MOUSE_POS):
+                    restart()
                     run()
                     hopps.shoot_cooldown = 0
+                if controls_button.checkForInput(MENU_MOUSE_POS):
+                    menu_controls()
 
         title_speed.tick(20)
         pygame.display.flip()
@@ -312,15 +379,201 @@ def run():
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    pause()
+                if event.key == pygame.K_r:
                     menu()
+
         sprites_group.update()
         hopps.update()
-        # pygame.draw.rect(screen, "black", hopps.rect, width=2)
+
+        clock.tick(FPS)
+        pygame.display.update()
+
+
+def pause():
+    overlay_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay_surface.fill((0, 0, 0, 128))
+
+    while True:
+
+        PAUSE_MOUSE_POS = pygame.mouse.get_pos()
+        hopps.shoot_cooldown = 100
+
+        screen.fill((0, 0, 0))
+        camera.custom_draw()
+
+        screen.blit(overlay_surface, (0, 0))
+
+        pygame.draw.rect(screen, (135, 206, 235), (200, 150, WIDTH - 400, HEIGHT - 300))
+
+        paused_text = Button(None, pos=((WIDTH / 2), 240),
+                             text_input="PAUSED", font=get_font(75), base_color="White", hovering_color="White")
+
+        resume_button = Button(None, pos=((WIDTH / 2), 370),
+                               text_input="Resume", font=get_font(35), base_color="White", hovering_color="#d7fcd4")
+
+        restart_button = Button(None, pos=((WIDTH / 2), 450),
+                                text_input="Menu", font=get_font(35), base_color="White", hovering_color="#d7fcd4")
+
+        controls_button = Button(None, pos=((WIDTH / 2), 520),
+                                 text_input="Controls", font=get_font(35), base_color="White", hovering_color="#d7fcd4")
+
+        paused_text.update(screen)
+
+        resume_button.changeColor(PAUSE_MOUSE_POS)
+        resume_button.update(screen)
+
+        restart_button.changeColor(PAUSE_MOUSE_POS)
+        restart_button.update(screen)
+
+        controls_button.changeColor(PAUSE_MOUSE_POS)
+        controls_button.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    run()
+                    hopps.shoot_cooldown = 0
+                if event.key == pygame.K_r:
+                    menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if resume_button.checkForInput(PAUSE_MOUSE_POS):
+                    run()
+                    hopps.shoot_cooldown = 0
+                if restart_button.checkForInput(PAUSE_MOUSE_POS):
+                    menu()
+                if controls_button.checkForInput(PAUSE_MOUSE_POS):
+                    from_pause = True
+                    pause_controls()
+
+        clock.tick(FPS)
+        pygame.display.update()
+
+
+def pause_controls():
+    overlay_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay_surface.fill((0, 0, 0, 128))
+
+    while True:
+
+        CONTROLS_MOUSE_POS = pygame.mouse.get_pos()
+        hopps.shoot_cooldown = 100
+
+        screen.fill((0, 0, 0))
+        camera.custom_draw()
+
+        screen.blit(overlay_surface, (0, 0))
+
+        pygame.draw.rect(screen, (135, 206, 235), (200, 150, WIDTH - 400, HEIGHT - 300))
+
+        controls_text = Button(None, pos=((WIDTH / 2), 220),
+                               text_input="Controls", font=get_font(75), base_color="White", hovering_color="White")
+
+        movement_text = Button(None, pos=((WIDTH / 2), 340),
+                               text_input="WASD or Arrow Keys to Move", font=get_font(30), base_color="White",
+                               hovering_color="#d7fcd4")
+
+        shooting_text = Button(None, pos=((WIDTH / 2), 420),
+                               text_input="LMB or Space to Shoot", font=get_font(30), base_color="White",
+                               hovering_color="#d7fcd4")
+
+        back_button = Button(None, pos=((WIDTH / 2) - 200, 540),
+                             text_input="Back", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        restart_button = Button(None, pos=((WIDTH / 2) + 200, 540),
+                                text_input="Menu", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        controls_text.update(screen)
+
+        movement_text.update(screen)
+
+        shooting_text.update(screen)
+
+        restart_button.changeColor(CONTROLS_MOUSE_POS)
+        restart_button.update(screen)
+
+        back_button.changeColor(CONTROLS_MOUSE_POS)
+        back_button.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    run()
+                    hopps.shoot_cooldown = 0
+                if event.key == pygame.K_r:
+                    menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if back_button.checkForInput(CONTROLS_MOUSE_POS):
+                    pause()
+                    hopps.shoot_cooldown = 0
+                if restart_button.checkForInput(CONTROLS_MOUSE_POS):
+                    menu()
+
+        clock.tick(FPS)
+        pygame.display.update()
+
+
+def menu_controls():
+    overlay_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay_surface.fill((0, 0, 0, 128))
+
+    while True:
+
+        CONTROLS_MOUSE_POS = pygame.mouse.get_pos()
+        screen.fill((135, 206, 235))
+        screen.blit(overlay_surface, (0, 0))
+
+        pygame.draw.rect(screen, (135, 206, 235), (200, 150, WIDTH - 400, HEIGHT - 300))
+
+        controls_text = Button(None, pos=((WIDTH / 2), 220),
+                               text_input="Controls", font=get_font(75), base_color="White", hovering_color="White")
+
+        movement_text = Button(None, pos=((WIDTH / 2), 340),
+                               text_input="WASD or Arrow Keys to Move", font=get_font(30), base_color="White",
+                               hovering_color="#d7fcd4")
+
+        shooting_text = Button(None, pos=((WIDTH / 2), 420),
+                               text_input="LMB or Space to Shoot", font=get_font(30), base_color="White",
+                               hovering_color="#d7fcd4")
+
+        back_button = Button(None, pos=((WIDTH / 2), 540),
+                             text_input="Back", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        controls_text.update(screen)
+
+        movement_text.update(screen)
+
+        shooting_text.update(screen)
+
+        back_button.changeColor(CONTROLS_MOUSE_POS)
+        back_button.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    run()
+                    hopps.shoot_cooldown = 0
+                if event.key == pygame.K_r:
+                    menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if back_button.checkForInput(CONTROLS_MOUSE_POS):
+                    menu()
 
         clock.tick(FPS)
         pygame.display.update()
 
 
 menu()
-
 pygame.quit()
