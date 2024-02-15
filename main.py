@@ -356,6 +356,10 @@ def menu():
                     hopps.shoot_cooldown = 0
                 if controls_button.checkForInput(MENU_MOUSE_POS):
                     menu_controls()
+                if exit_button.checkForInput(MENU_MOUSE_POS):
+                    pygame.quit()
+                    sys.exit()
+
 
         title_speed.tick(20)
         pygame.display.flip()
@@ -575,5 +579,49 @@ def menu_controls():
         pygame.display.update()
 
 
-menu()
+def game_over():
+
+    while True:
+        GAME_OVER_MOUSE_POS = pygame.mouse.get_pos()
+        screen.fill((0, 0, 0))
+        game_over_text = Button(None, pos=((WIDTH / 2), 250),
+                             text_input="Game Over", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
+
+        score_text = Button(None, pos=((WIDTH / 2), 400),
+                             text_input="Score:1000", font=get_font(60), base_color="White", hovering_color="#d7fcd4")
+
+        menu_button = Button(None, pos=((WIDTH / 2)-200, 540),
+                                text_input="Menu", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        exit_button = Button(None, pos=((WIDTH / 2)+200, 540),
+                                text_input="Exit", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        game_over_text.update(screen)
+
+        score_text.update(screen)
+
+        menu_button.changeColor(GAME_OVER_MOUSE_POS)
+        menu_button.update(screen)
+
+        exit_button.changeColor(GAME_OVER_MOUSE_POS)
+        exit_button.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if menu_button.checkForInput(GAME_OVER_MOUSE_POS):
+                    menu()
+                if exit_button.checkForInput(GAME_OVER_MOUSE_POS):
+                    pygame.quit()
+                    sys.exit()
+
+        clock.tick(FPS)
+        pygame.display.update()
+
+
+game_over()
+
 pygame.quit()
