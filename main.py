@@ -316,6 +316,7 @@ def menu():
     frames = get_frames(title_sheet, title_sheet.get_width(), 128)
     frame_index = 0
     frame_count = len(frames)
+    count = 0
 
     while True:
         MENU_MOUSE_POS = pygame.mouse.get_pos()
@@ -361,10 +362,13 @@ def menu():
                     sys.exit()
 
 
-        title_speed.tick(20)
+        title_speed.tick(60)
         pygame.display.flip()
 
-        frame_index = (frame_index + 1) % frame_count
+        count += 1
+        if count == 3:
+            frame_index = (frame_index + 1) % frame_count
+            count = 0
 
 
 def run():
@@ -622,6 +626,6 @@ def game_over():
         pygame.display.update()
 
 
-game_over()
+menu()
 
 pygame.quit()
