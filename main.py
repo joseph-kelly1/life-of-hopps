@@ -1,4 +1,5 @@
 import pygame
+import sys
 from settings import *
 import math
 
@@ -16,11 +17,12 @@ pygame.display.set_icon(pygame.image.load("assets/life-of-hopps-icon.png"))
 clock = pygame.time.Clock()
 
 # load images
-background = pygame.image.load('assets/loh-bg-v3.png').convert()
+background = pygame.image.load('assets/loh-bg-v4.png').convert_alpha()
+ui_bar = pygame.image.load('assets/loh-ui-bar.png').convert_alpha()
+title_sheet = pygame.image.load('assets/loh_title-Sheet.png').convert_alpha()
 
 # load hopps spritesheet
-#player images
-all_hopps = pygame.image.load("assets/All_Hopps.png")
+all_hopps = pygame.image.load("assets/All_Hopps.png").convert_alpha()
 
 sprite_width, sprite_height = 64, 64
 
@@ -43,6 +45,30 @@ for row in range(2):
         key = list(player_sprites.keys())[len(player_sprites) - (row * 4 + col + 1)]
         new_sprite = pygame.transform.rotozoom(all_hopps.subsurface(sprite_rect).convert_alpha(), 0, HOPPS_SCALE)
         player_sprites[key] = new_sprite
+
+
+# function for getting sprite sheet frames
+def get_frames(sheet, frame_width, frame_height):
+    frames = []
+    sheet_width, sheet_height = sheet.get_size()
+    for y in range(0, sheet_height, frame_height):
+        for x in range(0, sheet_width, frame_width):
+            frame = sheet.subsurface((x, y, frame_width, frame_height))
+            frames.append(frame)
+    return frames
+
+
+# FONTS
+def draw_text(text, font, text_col, x, y):
+    img = font.render(text, True, text_col)
+    screen.blit(img, (x, y))
+
+
+def get_font(size):
+    return pygame.font.Font("assets/font.ttf", size)
+
+
+TEXT_COLOR = (255, 255, 255)
 
 
 class Hopps(pygame.sprite.Sprite):
@@ -82,7 +108,8 @@ class Hopps(pygame.sprite.Sprite):
             self.vel_x = HOPPS_SPEED
             self.image = player_sprites["RIGHT_HOPPS"]
 
-        if not(keys[pygame.K_w] or keys[pygame.K_UP]) and not(keys[pygame.K_s] or keys[pygame.K_DOWN]) and not(keys[pygame.K_a] or keys[pygame.K_LEFT]) and not(keys[pygame.K_d] or keys[pygame.K_RIGHT]):
+        if not (keys[pygame.K_w] or keys[pygame.K_UP]) and not (keys[pygame.K_s] or keys[pygame.K_DOWN]) and not (
+                keys[pygame.K_a] or keys[pygame.K_LEFT]) and not (keys[pygame.K_d] or keys[pygame.K_RIGHT]):
             self.vel_x = 0
             self.vel_y = 0
 
@@ -100,15 +127,18 @@ class Hopps(pygame.sprite.Sprite):
             self.vel_y /= math.sqrt(2)
 
         # boundaries
-        if ((keys[pygame.K_w] or keys[pygame.K_UP]) and hopps.pos[1] <= 90) \
-                or ((keys[pygame.K_s] or keys[pygame.K_DOWN]) and hopps.pos[1] >= background.get_height() - hopps.image.get_height()):
+        if ((keys[pygame.K_w] or keys[pygame.K_UP]) and hopps.pos[1] <= 9) \
+                or ((keys[pygame.K_s] or keys[pygame.K_DOWN]) and hopps.pos[
+            1] >= background.get_height() - hopps.image.get_height()):
             self.vel_y = 0
 
         if ((keys[pygame.K_a] or keys[pygame.K_LEFT]) and hopps.pos[0] <= -9) \
-                or ((keys[pygame.K_d] or keys[pygame.K_RIGHT]) and hopps.pos[0] >= background.get_width() - hopps.image.get_width() + 9):
+                or ((keys[pygame.K_d] or keys[pygame.K_RIGHT]) and hopps.pos[
+            0] >= background.get_width() - hopps.image.get_width() + 9):
             self.vel_x = 0
 
         # Shooting
+        self.get_angle()
         if pygame.mouse.get_pressed() == (1, 0, 0) or keys[pygame.K_SPACE]:
             self.shoot = True
             self.is_shooting()
@@ -119,13 +149,15 @@ class Hopps(pygame.sprite.Sprite):
         if self.shoot_cooldown == 0:
             self.shoot_cooldown = 20
             spawn_bullet_pos = self.pos
-            self.bullet = Bullet(spawn_bullet_pos[0] + (.5 * self.rect.width), spawn_bullet_pos[1] + (.5 * self.rect.height), self.angle)
+            self.bullet = Bullet(spawn_bullet_pos[0] + (.5 * self.rect.width),
+                                 spawn_bullet_pos[1] + (.5 * self.rect.height), self.angle)
             bullet_group.add(self.bullet)
             sprites_group.add(self.bullet)
 
     def move(self):
         self.rect.topleft = self.pos
         self.pos += pygame.math.Vector2(self.vel_x, self.vel_y)
+
     def update(self):
         self.move()
         self.user_input()
@@ -178,30 +210,86 @@ class Enemy(pygame.sprite.Sprite):
         self.direction = pygame.math.Vector2()
         self.velocity = pygame.math.Vector2()
         self.speed = ENEMY_SPEED
+        self.collide = False
+        self.health = 5
+        self.alive = True
 
-    def hunt_player(self):
-        player_vector = pygame.math.Vector2(hopps.rect.center)
+    def hunt_player(self, player):
+        player_vector = pygame.math.Vector2(player.rect.center)
         enemy_vector = pygame.math.Vector2(self.rect.center)
-        distance = self.get_distance(player_vector, enemy_vector)
 
-        if distance > 0:
-            self.direction = (player_vector - enemy_vector).normalize()
-        else:
-            self.direction = pygame.math.Vector2()
+        # Check if the enemy and player positions are not the same
+        if player_vector != enemy_vector:
+            direction = (player_vector - enemy_vector).normalize()
+            self.velocity = direction * self.speed
+            self.position += self.velocity
+            self.rect.centerx = self.position.x
+            self.rect.centery = self.position.y
 
-        self.velocity = self.direction * self.speed
-        self.position += self.velocity
 
-        self.rect.centerx = self.position.x
-        self.rect.centery = self.position.y
+    def check_collision(self):
+        # Inside your game loop:
+        for bullet in bullet_group:
+            if pygame.sprite.collide_rect(bullet, self):  # Check collision
+                self.health -= 1  # Reduce enemy health
+                bullet.bullet_lifetime = 0  # Remove the bullet
+                print(self.health)
+
+
+
+        # for sprite in bullet_group:
+        #     if sprite.rect.colliderect(self.rect):
+        #         self.health -= 1
+        #         bullet_group.remove(sprite)
+
+    def check_alive(self):
+        if self.health <= 0:
+            self.kill()
+
 
     def get_distance(self, vector_1, vector_2):
         return (vector_1 - vector_2).magnitude()
 
     def update(self):
-        self.hunt_player()
+        self.hunt_player(hopps)
+        self.check_collision()
+        self.check_alive()
 
 
+
+
+
+class Button:
+    def __init__(self, image, pos, text_input, font, base_color, hovering_color):
+        self.image = image
+        self.x_pos = pos[0]
+        self.y_pos = pos[1]
+        self.font = font
+        self.base_color, self.hovering_color = base_color, hovering_color
+        self.text_input = text_input
+        self.text = self.font.render(self.text_input, True, self.base_color)
+        if self.image is None:
+            self.image = self.text
+        self.rect = self.image.get_rect(center=(self.x_pos, self.y_pos))
+        self.text_rect = self.text.get_rect(center=(self.x_pos, self.y_pos))
+
+    def update(self, screen):
+        if self.image is not None:
+            screen.blit(self.image, self.rect)
+        screen.blit(self.text, self.text_rect)
+
+    def checkForInput(self, position):
+        if position[0] in range(self.rect.left, self.rect.right) and position[1] in range(self.rect.top,
+                                                                                          self.rect.bottom):
+            return True
+        return False
+
+    def changeColor(self, position):
+        if position[0] in range(self.rect.left, self.rect.right) and position[1] in range(self.rect.top,
+                                                                                          self.rect.bottom):
+            self.text = self.font.render(self.text_input, True, self.hovering_color)
+        else:
+            self.text = self.font.render(self.text_input, True, self.base_color)
 
 
 class Camera(pygame.sprite.Group):
@@ -220,49 +308,353 @@ class Camera(pygame.sprite.Group):
 
         for sprite in sprites_group:
             offset_pos = sprite.rect.topleft - self.offset
-            if type(sprite) is Enemy:
-                print(sprite.rect)
             screen.blit(sprite.image, offset_pos)
-
-
 
 
 sprites_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 
+
 camera = Camera()
 hopps = Hopps()
 spider = Enemy((400, 400))
+
+enemy_group.add(spider)
 
 sprites_group.add(hopps)
 sprites_group.add(spider)
 
 
-run = True
-while run:
+def restart():
+    global camera, hopps, sprites_group
+    hopps = Hopps()
+    hopps.shoot_cooldown = 100
+    spider = Enemy((400, 400))
+    camera = Camera()
 
-    # pygame.draw.rect(screen, "black", hopps.rect, width=2)
-
-    # screen.blit(background, (0, 0))
-    screen.fill((0, 0, 0))
-
-    camera.custom_draw()
-    # sprites_group.draw(screen)
+    sprites_group.empty()
+    sprites_group.add(hopps)
+    sprites_group.add(spider)
 
 
-    for event in pygame.event.get():
-        # quit program
-        if event.type == pygame.QUIT:
-            run = False
+def menu():
+    title_speed = pygame.time.Clock()
 
-    # enemy_group.draw(screen)
-    sprites_group.update()
-    # enemy_group.update()
-    # spider.update()
-    hopps.update()
+    frames = get_frames(title_sheet, title_sheet.get_width(), 128)
+    frame_index = 0
+    frame_count = len(frames)
+    count = 0
 
-    clock.tick(FPS)
-    pygame.display.update()
+    while True:
+        MENU_MOUSE_POS = pygame.mouse.get_pos()
+        hopps.shoot_cooldown = 100
+
+        screen.fill((135, 206, 235))
+
+        current_frame = frames[frame_index]
+        screen.blit(current_frame, ((title_sheet.get_width() - WIDTH) / -2, 100))  # Adjust position as needed
+
+        play_button = Button(None, pos=((WIDTH / 2), 380),
+                             text_input="PLAY", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
+
+        controls_button = Button(None, pos=((WIDTH / 2), 530),
+                                 text_input="Controls", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
+
+        exit_button = Button(None, pos=((WIDTH / 2), 680),
+                             text_input="Exit", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
+
+        controls_button.changeColor(MENU_MOUSE_POS)
+        controls_button.update(screen)
+
+        play_button.changeColor(MENU_MOUSE_POS)
+        play_button.update(screen)
+
+        exit_button.changeColor(MENU_MOUSE_POS)
+        exit_button.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if play_button.checkForInput(MENU_MOUSE_POS):
+                    restart()
+                    run()
+                    hopps.shoot_cooldown = 0
+                if controls_button.checkForInput(MENU_MOUSE_POS):
+                    menu_controls()
+                if exit_button.checkForInput(MENU_MOUSE_POS):
+                    pygame.quit()
+                    sys.exit()
+
+
+        title_speed.tick(60)
+        pygame.display.flip()
+
+        count += 1
+
+        if count == 3:
+            frame_index = (frame_index + 1) % frame_count
+            count = 0
+
+
+def run():
+    while True:
+        screen.fill((0, 0, 0))
+
+        camera.custom_draw()
+        screen.blit(ui_bar, ((2048 - WIDTH) / -2, 0))
+
+        # draw_text("LIFE OF HOPPS", font, TEXT_COLOR, 160, 250)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pause()
+                if event.key == pygame.K_r:
+                    menu()
+
+        sprites_group.update()
+        hopps.update()
+
+        clock.tick(FPS)
+        pygame.display.update()
+
+
+def pause():
+    overlay_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay_surface.fill((0, 0, 0, 128))
+
+    while True:
+
+        PAUSE_MOUSE_POS = pygame.mouse.get_pos()
+        hopps.shoot_cooldown = 100
+
+        screen.fill((0, 0, 0))
+        camera.custom_draw()
+
+        screen.blit(overlay_surface, (0, 0))
+
+        pygame.draw.rect(screen, (135, 206, 235), (200, 150, WIDTH - 400, HEIGHT - 300))
+
+        paused_text = Button(None, pos=((WIDTH / 2), 240),
+                             text_input="PAUSED", font=get_font(75), base_color="White", hovering_color="White")
+
+        resume_button = Button(None, pos=((WIDTH / 2), 370),
+                               text_input="Resume", font=get_font(35), base_color="White", hovering_color="#d7fcd4")
+
+        restart_button = Button(None, pos=((WIDTH / 2), 450),
+                                text_input="Menu", font=get_font(35), base_color="White", hovering_color="#d7fcd4")
+
+        controls_button = Button(None, pos=((WIDTH / 2), 520),
+                                 text_input="Controls", font=get_font(35), base_color="White", hovering_color="#d7fcd4")
+
+        paused_text.update(screen)
+
+        resume_button.changeColor(PAUSE_MOUSE_POS)
+        resume_button.update(screen)
+
+        restart_button.changeColor(PAUSE_MOUSE_POS)
+        restart_button.update(screen)
+
+        controls_button.changeColor(PAUSE_MOUSE_POS)
+        controls_button.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    run()
+                    hopps.shoot_cooldown = 0
+                if event.key == pygame.K_r:
+                    menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if resume_button.checkForInput(PAUSE_MOUSE_POS):
+                    run()
+                    hopps.shoot_cooldown = 0
+                if restart_button.checkForInput(PAUSE_MOUSE_POS):
+                    menu()
+                if controls_button.checkForInput(PAUSE_MOUSE_POS):
+                    from_pause = True
+                    pause_controls()
+
+        clock.tick(FPS)
+        pygame.display.update()
+
+
+def pause_controls():
+    overlay_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay_surface.fill((0, 0, 0, 128))
+
+    while True:
+
+        CONTROLS_MOUSE_POS = pygame.mouse.get_pos()
+        hopps.shoot_cooldown = 100
+
+        screen.fill((0, 0, 0))
+        camera.custom_draw()
+
+        screen.blit(overlay_surface, (0, 0))
+
+        pygame.draw.rect(screen, (135, 206, 235), (200, 150, WIDTH - 400, HEIGHT - 300))
+
+        controls_text = Button(None, pos=((WIDTH / 2), 220),
+                               text_input="Controls", font=get_font(75), base_color="White", hovering_color="White")
+
+        movement_text = Button(None, pos=((WIDTH / 2), 340),
+                               text_input="WASD or Arrow Keys to Move", font=get_font(30), base_color="White",
+                               hovering_color="#d7fcd4")
+
+        shooting_text = Button(None, pos=((WIDTH / 2), 420),
+                               text_input="LMB or Space to Shoot", font=get_font(30), base_color="White",
+                               hovering_color="#d7fcd4")
+
+        back_button = Button(None, pos=((WIDTH / 2) - 200, 540),
+                             text_input="Back", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        restart_button = Button(None, pos=((WIDTH / 2) + 200, 540),
+                                text_input="Menu", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        controls_text.update(screen)
+
+        movement_text.update(screen)
+
+        shooting_text.update(screen)
+
+        restart_button.changeColor(CONTROLS_MOUSE_POS)
+        restart_button.update(screen)
+
+        back_button.changeColor(CONTROLS_MOUSE_POS)
+        back_button.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    run()
+                    hopps.shoot_cooldown = 0
+                if event.key == pygame.K_r:
+                    menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if back_button.checkForInput(CONTROLS_MOUSE_POS):
+                    pause()
+                    hopps.shoot_cooldown = 0
+                if restart_button.checkForInput(CONTROLS_MOUSE_POS):
+                    menu()
+
+        clock.tick(FPS)
+        pygame.display.update()
+
+
+def menu_controls():
+    overlay_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay_surface.fill((0, 0, 0, 128))
+
+    while True:
+
+        CONTROLS_MOUSE_POS = pygame.mouse.get_pos()
+        screen.fill((135, 206, 235))
+        screen.blit(overlay_surface, (0, 0))
+
+        pygame.draw.rect(screen, (135, 206, 235), (200, 150, WIDTH - 400, HEIGHT - 300))
+
+        controls_text = Button(None, pos=((WIDTH / 2), 220),
+                               text_input="Controls", font=get_font(75), base_color="White", hovering_color="White")
+
+        movement_text = Button(None, pos=((WIDTH / 2), 340),
+                               text_input="WASD or Arrow Keys to Move", font=get_font(30), base_color="White",
+                               hovering_color="#d7fcd4")
+
+        shooting_text = Button(None, pos=((WIDTH / 2), 420),
+                               text_input="LMB or Space to Shoot", font=get_font(30), base_color="White",
+                               hovering_color="#d7fcd4")
+
+        back_button = Button(None, pos=((WIDTH / 2), 540),
+                             text_input="Back", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        controls_text.update(screen)
+
+        movement_text.update(screen)
+
+        shooting_text.update(screen)
+
+        back_button.changeColor(CONTROLS_MOUSE_POS)
+        back_button.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    run()
+                    hopps.shoot_cooldown = 0
+                if event.key == pygame.K_r:
+                    menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if back_button.checkForInput(CONTROLS_MOUSE_POS):
+                    menu()
+
+        clock.tick(FPS)
+        pygame.display.update()
+
+
+def game_over():
+
+    while True:
+        GAME_OVER_MOUSE_POS = pygame.mouse.get_pos()
+        screen.fill((0, 0, 0))
+        game_over_text = Button(None, pos=((WIDTH / 2), 250),
+                             text_input="Game Over", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
+
+        score_text = Button(None, pos=((WIDTH / 2), 400),
+                             text_input="Score:1000", font=get_font(60), base_color="White", hovering_color="#d7fcd4")
+
+        menu_button = Button(None, pos=((WIDTH / 2)-200, 540),
+                                text_input="Menu", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        exit_button = Button(None, pos=((WIDTH / 2)+200, 540),
+                                text_input="Exit", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        game_over_text.update(screen)
+
+        score_text.update(screen)
+
+        menu_button.changeColor(GAME_OVER_MOUSE_POS)
+        menu_button.update(screen)
+
+        exit_button.changeColor(GAME_OVER_MOUSE_POS)
+        exit_button.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if menu_button.checkForInput(GAME_OVER_MOUSE_POS):
+                    menu()
+                if exit_button.checkForInput(GAME_OVER_MOUSE_POS):
+                    pygame.quit()
+                    sys.exit()
+
+        clock.tick(FPS)
+        pygame.display.update()
+
+
+menu()
 
 pygame.quit()
