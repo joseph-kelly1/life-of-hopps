@@ -20,6 +20,8 @@ clock = pygame.time.Clock()
 background = pygame.image.load('assets/loh-bg-v4.png').convert_alpha()
 ui_bar = pygame.image.load('assets/loh-ui-bar.png').convert_alpha()
 title_sheet = pygame.image.load('assets/loh_title-Sheet.png').convert_alpha()
+pause_icon = pygame.image.load('assets/pause.png').convert_alpha()
+pause_icon = pygame.transform.rotozoom(pause_icon, 0, 1.4)
 
 # load hopps spritesheet
 all_hopps = pygame.image.load("assets/All_Hopps.png").convert_alpha()
@@ -233,6 +235,22 @@ class Enemy(pygame.sprite.Sprite):
     def update(self):
         self.hunt_player()
 
+class HealthBar():
+    def __init__(self, x, y, w, h, max_hp):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.hp = max_hp
+        self.max_hp = max_hp
+
+    def draw(self, surface):
+        # calculate health ratio
+        ratio = self.hp / self.max_hp
+        pygame.draw.rect(surface, "grey", (self.x, self.y, self.w, self.h))
+        pygame.draw.rect(surface,"red", (self.x, self.y, self.w * ratio, self.h))
+        pygame.draw.rect(surface, "black", (self.x, self.y, self.w, self.h), width=5)
+
 
 class Button:
     def __init__(self, image, pos, text_input, font, base_color, hovering_color):
@@ -293,6 +311,9 @@ bullet_group = pygame.sprite.Group()
 camera = Camera()
 hopps = Hopps()
 spider = Enemy((400, 400))
+health_bar = HealthBar(20, 20, 300, 40, 100)
+health_bar.hp = 100
+dice_level = 1
 
 sprites_group.add(hopps)
 sprites_group.add(spider)
@@ -302,8 +323,11 @@ def restart():
     global camera, hopps, sprites_group
     hopps = Hopps()
     hopps.shoot_cooldown = 100
+    health_bar.hp = 100
+    dice_level = 1
     spider = Enemy((400, 400))
     camera = Camera()
+
 
     sprites_group.empty()
     sprites_group.add(hopps)
@@ -373,12 +397,20 @@ def menu():
 
 def run():
     while True:
+        RUN_MOUSE_POS = pygame.mouse.get_pos()
+
         screen.fill((0, 0, 0))
 
         camera.custom_draw()
         screen.blit(ui_bar, ((2048 - WIDTH) / -2, 0))
 
-        # draw_text("LIFE OF HOPPS", font, TEXT_COLOR, 160, 250)
+        health_bar.draw(screen)
+        draw_text("Dice Level:" + str(dice_level), get_font(25), "black", 20, 80)
+
+        pause_button = Button(pause_icon, pos=(WIDTH-60, 60),
+                             text_input="", font=get_font(20), base_color="black", hovering_color="#d7fcd4")
+
+        pause_button.update(screen)
 
         for event in pygame.event.get():
             # quit program
@@ -390,6 +422,9 @@ def run():
                     pause()
                 if event.key == pygame.K_r:
                     menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if pause_button.checkForInput(RUN_MOUSE_POS):
+                    pause()
 
         sprites_group.update()
         hopps.update()
