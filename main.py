@@ -212,28 +212,50 @@ class Enemy(pygame.sprite.Sprite):
         self.direction = pygame.math.Vector2()
         self.velocity = pygame.math.Vector2()
         self.speed = ENEMY_SPEED
+        self.collide = False
+        self.health = 5
+        self.alive = True
 
-    def hunt_player(self):
-        player_vector = pygame.math.Vector2(hopps.rect.center)
+    def hunt_player(self, player):
+        player_vector = pygame.math.Vector2(player.rect.center)
         enemy_vector = pygame.math.Vector2(self.rect.center)
-        distance = self.get_distance(player_vector, enemy_vector)
 
-        if distance > 0:
-            self.direction = (player_vector - enemy_vector).normalize()
-        else:
-            self.direction = pygame.math.Vector2()
+        # Check if the enemy and player positions are not the same
+        if player_vector != enemy_vector:
+            direction = (player_vector - enemy_vector).normalize()
+            self.velocity = direction * self.speed
+            self.position += self.velocity
+            self.rect.centerx = self.position.x
+            self.rect.centery = self.position.y
 
-        self.velocity = self.direction * self.speed
-        self.position += self.velocity
 
-        self.rect.centerx = self.position.x
-        self.rect.centery = self.position.y
+    def check_collision(self):
+        # Inside your game loop:
+        for bullet in bullet_group:
+            if pygame.sprite.collide_rect(bullet, self):  # Check collision
+                self.health -= 1  # Reduce enemy health
+                bullet.bullet_lifetime = 0  # Remove the bullet
+                print(self.health)
+
+
+
+        # for sprite in bullet_group:
+        #     if sprite.rect.colliderect(self.rect):
+        #         self.health -= 1
+        #         bullet_group.remove(sprite)
+
+    def check_alive(self):
+        if self.health <= 0:
+            self.kill()
+
 
     def get_distance(self, vector_1, vector_2):
         return (vector_1 - vector_2).magnitude()
 
     def update(self):
-        self.hunt_player()
+        self.hunt_player(hopps)
+        self.check_collision()
+        self.check_alive()
 
 class HealthBar():
     def __init__(self, x, y, w, h, max_hp):

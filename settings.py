@@ -7,8 +7,8 @@ HOPPS_START_POS = (1000, 400)
 HOPPS_SPEED = 8
 HOPPS_SCALE = 1.2
 
-# enemy settings
-ENEMY_SPEED = 4
+#Enemy Settings
+ENEMY_SPEED = 7
 
 
 # bullet settings
