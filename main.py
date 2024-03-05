@@ -23,6 +23,10 @@ title_sheet = pygame.image.load('assets/loh_title-Sheet.png').convert_alpha()
 pause_icon = pygame.image.load('assets/pause.png').convert_alpha()
 pause_icon = pygame.transform.rotozoom(pause_icon, 0, 1.4)
 
+spider_image = pygame.image.load('assets/spider.png').convert_alpha()
+beetle_image = pygame.image.load('assets/beetle.png').convert_alpha()
+stinkbug_image = pygame.image.load('assets/stinkbug.png').convert_alpha()
+
 # load hopps spritesheet
 all_hopps = pygame.image.load("assets/All_Hopps.png").convert_alpha()
 
@@ -201,10 +205,10 @@ class Bullet(pygame.sprite.Sprite):
 
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, position):
+    def __init__(self, position, image):
         super().__init__(enemy_group, sprites_group)
         self.position = pygame.math.Vector2(position)
-        self.image = pygame.image.load('assets/spider.png').convert_alpha()
+        self.image = image
         self.rect = self.image.get_rect()
         # self.rect.center = position
         self.rect.x = position[0]
@@ -332,7 +336,7 @@ bullet_group = pygame.sprite.Group()
 
 camera = Camera()
 hopps = Hopps()
-spider = Enemy((400, 400))
+spider = Enemy((400, 400), spider_image)
 health_bar = HealthBar(20, 20, 300, 40, 100)
 health_bar.hp = 100
 dice_level = 1
@@ -344,10 +348,10 @@ sprites_group.add(spider)
 def restart():
     global camera, hopps, sprites_group
     hopps = Hopps()
-    hopps.shoot_cooldown = 100
+    hopps.shoot_cooldown = 80
     health_bar.hp = 100
     dice_level = 1
-    spider = Enemy((400, 400))
+    spider = Enemy((400, 400), spider_image)
     camera = Camera()
 
 
@@ -366,7 +370,7 @@ def menu():
 
     while True:
         MENU_MOUSE_POS = pygame.mouse.get_pos()
-        hopps.shoot_cooldown = 100
+        hopps.shoot_cooldown = 80
 
         screen.fill((135, 206, 235))
 
