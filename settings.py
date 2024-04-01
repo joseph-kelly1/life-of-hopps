@@ -1,14 +1,16 @@
+import random
+
 # game variables
 FPS = 60
 
 # player settings
 
 HOPPS_START_POS = (1000, 400)
-HOPPS_SPEED = 8
+HOPPS_SPEED = 7
 HOPPS_SCALE = 1.2
 
 #Enemy Settings
-ENEMY_SPEED = 7
+ENEMY_SPEED = 1.5
 
 
 # bullet settings

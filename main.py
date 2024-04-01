@@ -89,6 +89,7 @@ class Hopps(pygame.sprite.Sprite):
         self.shoot_cooldown = 0
         self.vel_x = 0
         self.vel_y = 0
+        self.regen_timer = 300
 
     def get_angle(self):
         self.mouse_coords = pygame.mouse.get_pos()
@@ -151,6 +152,8 @@ class Hopps(pygame.sprite.Sprite):
         else:
             self.shoot = False
 
+        print(self.vel_x, self.vel_y)
+
     def is_shooting(self):
         if self.shoot_cooldown == 0:
             self.shoot_cooldown = 20
@@ -173,6 +176,13 @@ class Hopps(pygame.sprite.Sprite):
         if self.shoot_cooldown > 0:
             self.shoot_cooldown -= 1
 
+        if health_bar.hp > 0:
+            if health_bar.hp < 100 and self.regen_timer > 0:
+                self.regen_timer -= 1
+
+            if self.regen_timer == 0:
+                health_bar.hp += 5
+                self.regen_timer = 300
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y, angle):
@@ -209,16 +219,18 @@ class Enemy(pygame.sprite.Sprite):
         super().__init__(enemy_group, sprites_group)
         self.position = pygame.math.Vector2(position)
         self.image = image
+        self.original_image = image
         self.rect = self.image.get_rect()
-        # self.rect.center = position
         self.rect.x = position[0]
         self.rect.y = position[1]
         self.direction = pygame.math.Vector2()
         self.velocity = pygame.math.Vector2()
+        self.acc = pygame.math.Vector2()
         self.speed = ENEMY_SPEED
         self.collide = False
         self.health = 5
         self.alive = True
+        self.attack_timer = 0
 
     def hunt_player(self, player):
         player_vector = pygame.math.Vector2(player.rect.center)
@@ -228,25 +240,36 @@ class Enemy(pygame.sprite.Sprite):
         if player_vector != enemy_vector:
             direction = (player_vector - enemy_vector).normalize()
             self.velocity = direction * self.speed
-            self.position += self.velocity
+            self.acc += self.velocity
+            if self.acc[0] >= 10:
+                self.acc[0] = 10
+            if self.acc[1] >= 10:
+                self.acc[1] = 10
+            self.position += self.acc
             self.rect.centerx = self.position.x
             self.rect.centery = self.position.y
+
+            # angle enemy toward hopps
+            x = self.rect.x - hopps.rect.x
+            y = self.rect.y - hopps.rect.y
+            self.angle = math.degrees(math.atan2(x, y))
+            self.image = pygame.transform.rotate(self.original_image, self.angle)
 
 
     def check_collision(self):
         # Inside your game loop:
+        if self.attack_timer > 0:
+            self.attack_timer -= 1
+        if pygame.sprite.collide_rect(hopps, self) and self.attack_timer == 0 and health_bar.hp > 0:
+            health_bar.hp -= 10
+            self.attack_timer = 60
+
+
         for bullet in bullet_group:
             if pygame.sprite.collide_rect(bullet, self):  # Check collision
                 self.health -= 1  # Reduce enemy health
                 bullet.bullet_lifetime = 0  # Remove the bullet
                 print(self.health)
-
-
-
-        # for sprite in bullet_group:
-        #     if sprite.rect.colliderect(self.rect):
-        #         self.health -= 1
-        #         bullet_group.remove(sprite)
 
     def check_alive(self):
         if self.health <= 0:
@@ -260,6 +283,7 @@ class Enemy(pygame.sprite.Sprite):
         self.hunt_player(hopps)
         self.check_collision()
         self.check_alive()
+
 
 class HealthBar():
     def __init__(self, x, y, w, h, max_hp):
@@ -343,6 +367,7 @@ dice_level = 1
 
 sprites_group.add(hopps)
 sprites_group.add(spider)
+enemy_group.add(spider)
 
 
 def restart():
@@ -352,12 +377,14 @@ def restart():
     health_bar.hp = 100
     dice_level = 1
     spider = Enemy((400, 400), spider_image)
+    beetle = Enemy((800, 400), beetle_image)
     camera = Camera()
 
 
     sprites_group.empty()
     sprites_group.add(hopps)
     sprites_group.add(spider)
+    sprites_group.add(beetle)
 
 
 def menu():
@@ -457,6 +484,9 @@ def run():
 
         clock.tick(FPS)
         pygame.display.update()
+
+        if health_bar.hp <= 0:
+            game_over()
 
 
 def pause():
