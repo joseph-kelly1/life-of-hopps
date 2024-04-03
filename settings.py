@@ -6,11 +6,11 @@ FPS = 60
 # player settings
 
 HOPPS_START_POS = (1000, 400)
-HOPPS_SPEED = 7
+HOPPS_SPEED = 5
 HOPPS_SCALE = 1.2
 
 #Enemy Settings
-ENEMY_SPEED = 1.5
+ENEMY_SPEED = 4
 
 
 # bullet settings

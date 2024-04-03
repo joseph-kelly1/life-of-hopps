@@ -1,7 +1,9 @@
 import pygame
 import sys
 from settings import *
+from levels import *
 import math
+import random
 
 # setup pygame
 
@@ -152,7 +154,6 @@ class Hopps(pygame.sprite.Sprite):
         else:
             self.shoot = False
 
-        print(self.vel_x, self.vel_y)
 
     def is_shooting(self):
         if self.shoot_cooldown == 0:
@@ -245,7 +246,7 @@ class Enemy(pygame.sprite.Sprite):
                 self.acc[0] = 10
             if self.acc[1] >= 10:
                 self.acc[1] = 10
-            self.position += self.acc
+            self.position += self.velocity
             self.rect.centerx = self.position.x
             self.rect.centery = self.position.y
 
@@ -254,7 +255,6 @@ class Enemy(pygame.sprite.Sprite):
             y = self.rect.y - hopps.rect.y
             self.angle = math.degrees(math.atan2(x, y))
             self.image = pygame.transform.rotate(self.original_image, self.angle)
-
 
     def check_collision(self):
         # Inside your game loop:
@@ -267,13 +267,17 @@ class Enemy(pygame.sprite.Sprite):
 
         for bullet in bullet_group:
             if pygame.sprite.collide_rect(bullet, self):  # Check collision
-                self.health -= 1  # Reduce enemy health
+                self.health -= dice_level  # Reduce enemy health
                 bullet.bullet_lifetime = 0  # Remove the bullet
-                print(self.health)
 
     def check_alive(self):
+        global dice_level_bar
         if self.health <= 0:
             self.kill()
+            if not(total_level_enemies %2 == 0):
+                dice_level_bar.hp += (100/total_level_enemies + 1)
+            else:
+                dice_level_bar.hp += (100/total_level_enemies)
 
 
     def get_distance(self, vector_1, vector_2):
@@ -286,19 +290,22 @@ class Enemy(pygame.sprite.Sprite):
 
 
 class HealthBar():
-    def __init__(self, x, y, w, h, max_hp):
+    def __init__(self, x, y, w, h, max_hp, color):
         self.x = x
         self.y = y
         self.w = w
         self.h = h
         self.hp = max_hp
         self.max_hp = max_hp
+        self.color = color
 
     def draw(self, surface):
         # calculate health ratio
+        if self.hp > 100:
+            self.hp = 100
         ratio = self.hp / self.max_hp
         pygame.draw.rect(surface, "grey", (self.x, self.y, self.w, self.h))
-        pygame.draw.rect(surface,"red", (self.x, self.y, self.w * ratio, self.h))
+        pygame.draw.rect(surface, self.color, (self.x, self.y, self.w * ratio, self.h))
         pygame.draw.rect(surface, "black", (self.x, self.y, self.w, self.h), width=5)
 
 
@@ -360,31 +367,60 @@ bullet_group = pygame.sprite.Group()
 
 camera = Camera()
 hopps = Hopps()
-spider = Enemy((400, 400), spider_image)
-health_bar = HealthBar(20, 20, 300, 40, 100)
+health_bar = HealthBar(20, 20, 300, 40, 100, "red")
 health_bar.hp = 100
+dice_level_bar = HealthBar(1020, 20, 300, 40, 100, "green")
+dice_level_bar.hp = 0
 dice_level = 1
+level = 1
+total_level_enemies = 0
 
 sprites_group.add(hopps)
-sprites_group.add(spider)
-enemy_group.add(spider)
+
+
+def loadlevel(level):
+    global total_level_enemies
+    current_level = levels[level-1]
+
+    for i in range(current_level["spiders"]):
+        spider = Enemy((random.randint(0, 2048),random.randint(0, 1408)), spider_image)
+        sprites_group.add(spider)
+        enemy_group.add(spider)
+        total_level_enemies += 1
+    for i in range(current_level["beetles"]):
+        beetle = Enemy((random.randint(0, 2048),random.randint(0, 1408)), beetle_image)
+        sprites_group.add(beetle)
+        enemy_group.add(beetle)
+        total_level_enemies += 1
+    for i in range(current_level["stinkbugs"]):
+        stinkbug = Enemy((random.randint(0, 2048),random.randint(0, 1408)), stinkbug_image)
+        sprites_group.add(stinkbug)
+        enemy_group.add(stinkbug)
+        total_level_enemies += 1
+
+    print(total_level_enemies)
+
+loadlevel(level)
+
 
 
 def restart():
-    global camera, hopps, sprites_group
+    global camera, hopps, sprites_group, level, dice_level, dice_level_bar, total_level_enemies
     hopps = Hopps()
     hopps.shoot_cooldown = 80
     health_bar.hp = 100
     dice_level = 1
-    spider = Enemy((400, 400), spider_image)
-    beetle = Enemy((800, 400), beetle_image)
+    dice_level_bar.hp = 0
+    total_level_enemies = 0
+
     camera = Camera()
 
-
     sprites_group.empty()
+    enemy_group.empty()
     sprites_group.add(hopps)
-    sprites_group.add(spider)
-    sprites_group.add(beetle)
+    level = 1
+    loadlevel(level)
+
 
 
 def menu():
@@ -449,6 +485,10 @@ def menu():
 
 
 def run():
+    global level
+    global dice_level
+    global dice_level_bar
+
     while True:
         RUN_MOUSE_POS = pygame.mouse.get_pos()
 
@@ -458,7 +498,12 @@ def run():
         screen.blit(ui_bar, ((2048 - WIDTH) / -2, 0))
 
         health_bar.draw(screen)
-        draw_text("Dice Level:" + str(dice_level), get_font(25), "black", 20, 80)
+        draw_text("Level: " + str(level), get_font(25), "black", 20, 80)
+        dice_level_bar.draw(screen)
+        draw_text("Dice Level:" + str(dice_level), get_font(25), "black", 1020, 80)
+
+
+
 
         pause_button = Button(pause_icon, pos=(WIDTH-60, 60),
                              text_input="", font=get_font(20), base_color="black", hovering_color="#d7fcd4")
@@ -478,6 +523,16 @@ def run():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if pause_button.checkForInput(RUN_MOUSE_POS):
                     pause()
+
+        if not enemy_group:
+            level += 1
+            if level <= 10:
+                loadlevel(level)
+
+        if dice_level_bar.hp == 100 and dice_level < 5:
+            dice_level += 1
+            if dice_level < 5:
+                dice_level_bar.hp = 0
 
         sprites_group.update()
         hopps.update()
@@ -718,5 +773,6 @@ def game_over():
 
 
 menu()
+
 
 pygame.quit()
