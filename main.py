@@ -541,7 +541,7 @@ def run():
         pygame.display.update()
 
         if health_bar.hp <= 0:
-            game_over()
+            game_over_levels()
 
 
 def pause():
@@ -729,26 +729,21 @@ def menu_controls():
         pygame.display.update()
 
 
-def game_over():
+def game_over_levels():
 
     while True:
         GAME_OVER_MOUSE_POS = pygame.mouse.get_pos()
         screen.fill((0, 0, 0))
-        game_over_text = Button(None, pos=((WIDTH / 2), 250),
-                             text_input="Game Over", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
 
-        score_text = Button(None, pos=((WIDTH / 2), 400),
-                             text_input="Score:1000", font=get_font(60), base_color="White", hovering_color="#d7fcd4")
+        draw_text("Game Over", get_font(75), "White", WIDTH/4+30, 250)
+
+        draw_text("Level: " + str(level), get_font(60), "White", WIDTH/4+120, 380)
 
         menu_button = Button(None, pos=((WIDTH / 2)-200, 540),
                                 text_input="Menu", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
 
         exit_button = Button(None, pos=((WIDTH / 2)+200, 540),
                                 text_input="Exit", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
-
-        game_over_text.update(screen)
-
-        score_text.update(screen)
 
         menu_button.changeColor(GAME_OVER_MOUSE_POS)
         menu_button.update(screen)
