@@ -1,7 +1,9 @@
 import pygame
 import sys
 from settings import *
+from levels import *
 import math
+import random
 
 # setup pygame
 
@@ -9,6 +11,8 @@ pygame.init()
 
 WIDTH = pygame.display.Info().current_w
 HEIGHT = pygame.display.Info().current_h - 100
+score =0
+
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.SCALED, vsync=1)
 pygame.display.set_caption("Life of Hopps")
@@ -20,6 +24,12 @@ clock = pygame.time.Clock()
 background = pygame.image.load('assets/loh-bg-v4.png').convert_alpha()
 ui_bar = pygame.image.load('assets/loh-ui-bar.png').convert_alpha()
 title_sheet = pygame.image.load('assets/loh_title-Sheet.png').convert_alpha()
+pause_icon = pygame.image.load('assets/pause.png').convert_alpha()
+pause_icon = pygame.transform.rotozoom(pause_icon, 0, 1.4)
+
+spider_image = pygame.image.load('assets/spider.png').convert_alpha()
+beetle_image = pygame.image.load('assets/beetle.png').convert_alpha()
+stinkbug_image = pygame.image.load('assets/stinkbug.png').convert_alpha()
 
 # load hopps spritesheet
 all_hopps = pygame.image.load("assets/All_Hopps.png").convert_alpha()
@@ -83,6 +93,7 @@ class Hopps(pygame.sprite.Sprite):
         self.shoot_cooldown = 0
         self.vel_x = 0
         self.vel_y = 0
+        self.regen_timer = 300
 
     def get_angle(self):
         self.mouse_coords = pygame.mouse.get_pos()
@@ -145,6 +156,7 @@ class Hopps(pygame.sprite.Sprite):
         else:
             self.shoot = False
 
+
     def is_shooting(self):
         if self.shoot_cooldown == 0:
             self.shoot_cooldown = 20
@@ -167,6 +179,13 @@ class Hopps(pygame.sprite.Sprite):
         if self.shoot_cooldown > 0:
             self.shoot_cooldown -= 1
 
+        if health_bar.hp > 0:
+            if health_bar.hp < 100 and self.regen_timer > 0:
+                self.regen_timer -= 1
+
+            if self.regen_timer == 0:
+                health_bar.hp += 5
+                self.regen_timer = 300
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, x, y, angle):
@@ -199,20 +218,23 @@ class Bullet(pygame.sprite.Sprite):
 
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, position):
+
+    def __init__(self, position, image):
         super().__init__(enemy_group, sprites_group)
         self.position = pygame.math.Vector2(position)
-        self.image = pygame.image.load('assets/spider.png').convert_alpha()
+        self.image = image
+        self.original_image = image
         self.rect = self.image.get_rect()
-        # self.rect.center = position
         self.rect.x = position[0]
         self.rect.y = position[1]
         self.direction = pygame.math.Vector2()
         self.velocity = pygame.math.Vector2()
+        self.acc = pygame.math.Vector2()
         self.speed = ENEMY_SPEED
         self.collide = False
         self.health = 5
         self.alive = True
+        self.attack_timer = 0
 
     def hunt_player(self, player):
         player_vector = pygame.math.Vector2(player.rect.center)
@@ -222,29 +244,45 @@ class Enemy(pygame.sprite.Sprite):
         if player_vector != enemy_vector:
             direction = (player_vector - enemy_vector).normalize()
             self.velocity = direction * self.speed
+            self.acc += self.velocity
+            if self.acc[0] >= 10:
+                self.acc[0] = 10
+            if self.acc[1] >= 10:
+                self.acc[1] = 10
             self.position += self.velocity
             self.rect.centerx = self.position.x
             self.rect.centery = self.position.y
 
+            # angle enemy toward hopps
+            x = self.rect.x - hopps.rect.x
+            y = self.rect.y - hopps.rect.y
+            self.angle = math.degrees(math.atan2(x, y))
+            self.image = pygame.transform.rotate(self.original_image, self.angle)
 
     def check_collision(self):
         # Inside your game loop:
+        if self.attack_timer > 0:
+            self.attack_timer -= 1
+        if pygame.sprite.collide_rect(hopps, self) and self.attack_timer == 0 and health_bar.hp > 0:
+            health_bar.hp -= 10
+            self.attack_timer = 60
+
+
         for bullet in bullet_group:
             if pygame.sprite.collide_rect(bullet, self):  # Check collision
-                self.health -= 1  # Reduce enemy health
+                self.health -= dice_level  # Reduce enemy health
                 bullet.bullet_lifetime = 0  # Remove the bullet
-                print(self.health)
-
-
-
-        # for sprite in bullet_group:
-        #     if sprite.rect.colliderect(self.rect):
-        #         self.health -= 1
-        #         bullet_group.remove(sprite)
 
     def check_alive(self):
+        global dice_level_bar, score
         if self.health <= 0:
             self.kill()
+            score += 100
+
+            if not(total_level_enemies %2 == 0):
+                dice_level_bar.hp += (100/total_level_enemies + 1)
+            else:
+                dice_level_bar.hp += (100/total_level_enemies)
 
 
     def get_distance(self, vector_1, vector_2):
@@ -256,7 +294,24 @@ class Enemy(pygame.sprite.Sprite):
         self.check_alive()
 
 
+class HealthBar():
+    def __init__(self, x, y, w, h, max_hp, color):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.hp = max_hp
+        self.max_hp = max_hp
+        self.color = color
 
+    def draw(self, surface):
+        # calculate health ratio
+        if self.hp > 100:
+            self.hp = 100
+        ratio = self.hp / self.max_hp
+        pygame.draw.rect(surface, "grey", (self.x, self.y, self.w, self.h))
+        pygame.draw.rect(surface, self.color, (self.x, self.y, self.w * ratio, self.h))
+        pygame.draw.rect(surface, "black", (self.x, self.y, self.w, self.h), width=5)
 
 
 class Button:
@@ -315,27 +370,83 @@ sprites_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 
-
 camera = Camera()
 hopps = Hopps()
-spider = Enemy((400, 400))
+health_bar = HealthBar(20, 20, 300, 40, 100, "red")
+health_bar.hp = 100
+dice_level_bar = HealthBar(1020, 20, 300, 40, 100, "green")
 
-enemy_group.add(spider)
+dice_level_bar.hp = 0
+dice_level = 1
+level = 1
+total_level_enemies = 0
 
 sprites_group.add(hopps)
-sprites_group.add(spider)
+
+
+def loadlevel(level):
+    global total_level_enemies
+    current_level = levels[level-1]
+
+    for i in range(current_level["spiders"]):
+        spider = Enemy((random.randint(0, 2048),random.randint(0, 1408)), spider_image)
+        sprites_group.add(spider)
+        enemy_group.add(spider)
+        total_level_enemies += 1
+    for i in range(current_level["beetles"]):
+        beetle = Enemy((random.randint(0, 2048),random.randint(0, 1408)), beetle_image)
+        sprites_group.add(beetle)
+        enemy_group.add(beetle)
+        total_level_enemies += 1
+    for i in range(current_level["stinkbugs"]):
+        stinkbug = Enemy((random.randint(0, 2048),random.randint(0, 1408)), stinkbug_image)
+        sprites_group.add(stinkbug)
+        enemy_group.add(stinkbug)
+        total_level_enemies += 1
+
+    print(total_level_enemies)
+
+loadlevel(level)
+
+
+def game_over_endless(new_level):
+    global total_level_enemies
+    for i in range(new_level):
+        spider = Enemy((random.randint(0, 2048), random.randint(0, 1408)), spider_image)
+        sprites_group.add(spider)
+        enemy_group.add(spider)
+        total_level_enemies += 1
+    for i in range(new_level):
+        beetle = Enemy((random.randint(0, 2048), random.randint(0, 1408)), beetle_image)
+        sprites_group.add(beetle)
+        enemy_group.add(beetle)
+        total_level_enemies += 1
+    for i in range(new_level):
+        stinkbug = Enemy((random.randint(0, 2048), random.randint(0, 1408)), stinkbug_image)
+        sprites_group.add(stinkbug)
+        enemy_group.add(stinkbug)
+        total_level_enemies += 1
+
 
 
 def restart():
-    global camera, hopps, sprites_group
+    global camera, hopps, sprites_group, level, dice_level, dice_level_bar, total_level_enemies, score
     hopps = Hopps()
-    hopps.shoot_cooldown = 100
-    spider = Enemy((400, 400))
+    hopps.shoot_cooldown = 80
+    health_bar.hp = 100
+    dice_level = 1
+    dice_level_bar.hp = 0
+    total_level_enemies = 0
+    score = 0
+
     camera = Camera()
 
     sprites_group.empty()
+    enemy_group.empty()
     sprites_group.add(hopps)
-    sprites_group.add(spider)
+    level = 10
+    loadlevel(level)
+
 
 
 def menu():
@@ -348,7 +459,7 @@ def menu():
 
     while True:
         MENU_MOUSE_POS = pygame.mouse.get_pos()
-        hopps.shoot_cooldown = 100
+        hopps.shoot_cooldown = 80
 
         screen.fill((135, 206, 235))
 
@@ -394,20 +505,37 @@ def menu():
         pygame.display.flip()
 
         count += 1
-
         if count == 3:
             frame_index = (frame_index + 1) % frame_count
             count = 0
 
 
 def run():
+    global level
+    global dice_level
+    global dice_level_bar
+
     while True:
+        RUN_MOUSE_POS = pygame.mouse.get_pos()
+
         screen.fill((0, 0, 0))
 
         camera.custom_draw()
         screen.blit(ui_bar, ((2048 - WIDTH) / -2, 0))
 
-        # draw_text("LIFE OF HOPPS", font, TEXT_COLOR, 160, 250)
+        health_bar.draw(screen)
+        draw_text("Level: " + str(level), get_font(25), "black", 20, 80)
+        dice_level_bar.draw(screen)
+        draw_text("Dice Level:" + str(dice_level), get_font(25), "black", 1020, 80)
+        draw_text("Scorce: "+ str(score), get_font(25), "black", 380, 40)
+
+
+
+
+        pause_button = Button(pause_icon, pos=(WIDTH-60, 60),
+                             text_input="", font=get_font(20), base_color="black", hovering_color="#d7fcd4")
+
+        pause_button.update(screen)
 
         for event in pygame.event.get():
             # quit program
@@ -419,12 +547,118 @@ def run():
                     pause()
                 if event.key == pygame.K_r:
                     menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if pause_button.checkForInput(RUN_MOUSE_POS):
+                    pause()
+
+        if not enemy_group:
+            level += 1
+            if level <= 10:
+                loadlevel(level)
+            else:
+                game_won()
+
+        if dice_level_bar.hp == 100 and dice_level < 5:
+            dice_level += 1
+            if dice_level < 5:
+                dice_level_bar.hp = 0
 
         sprites_group.update()
         hopps.update()
 
         clock.tick(FPS)
         pygame.display.update()
+
+        if health_bar.hp <= 0:
+            game_over()
+
+
+
+def game_won():
+    while True:
+        screen.fill((0, 0, 0))
+        game_won_text = Button(None, pos=((WIDTH / 2), 250),
+                             text_input="You Won", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
+        continue_text = Button(None, pos=((WIDTH / 2)-200, 550),
+                               text_input="Press Enter to Continue", font=get_font(50), base_color="White", hovering_color="#d7fcd4")
+
+        score_text = Button(None, pos=((WIDTH / 2), 400),
+                             text_input="Score: "+ str(score), font=get_font(60), base_color="White", hovering_color="#d7fcd4")
+
+        score_text.update(screen)
+        game_won_text.update(screen)
+        continue_text.update(screen)
+
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    endless()
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+
+        pygame.display.update()
+
+
+
+
+
+
+def endless():
+    global level
+    global dice_level
+    global dice_level_bar
+
+    while True:
+        RUN_MOUSE_POS = pygame.mouse.get_pos()
+
+        screen.fill((0, 0, 0))
+
+        camera.custom_draw()
+        screen.blit(ui_bar, ((2048 - WIDTH) / -2, 0))
+
+        health_bar.draw(screen)
+        draw_text("Level: " + str(level), get_font(25), "black", 20, 80)
+        dice_level_bar.draw(screen)
+        draw_text("Dice Level:" + str(dice_level), get_font(25), "black", 1020, 80)
+
+        pause_button = Button(pause_icon, pos=(WIDTH - 60, 60),
+                              text_input="", font=get_font(20), base_color="black", hovering_color="#d7fcd4")
+
+        pause_button.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pause()
+                if event.key == pygame.K_r:
+                    menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if pause_button.checkForInput(RUN_MOUSE_POS):
+                    pause()
+
+        if not enemy_group:
+            game_over_endless(level)
+
+        if dice_level_bar.hp == 100 and dice_level < 5:
+            dice_level += 1
+            if dice_level < 5:
+                dice_level_bar.hp = 0
+
+        sprites_group.update()
+        hopps.update()
+
+        clock.tick(FPS)
+        pygame.display.update()
+
+        if health_bar.hp <= 0:
+            game_over()
 
 
 def pause():
@@ -621,7 +855,7 @@ def game_over():
                              text_input="Game Over", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
 
         score_text = Button(None, pos=((WIDTH / 2), 400),
-                             text_input="Score:1000", font=get_font(60), base_color="White", hovering_color="#d7fcd4")
+                             text_input="Score: "+ str(score), font=get_font(60), base_color="White", hovering_color="#d7fcd4")
 
         menu_button = Button(None, pos=((WIDTH / 2)-200, 540),
                                 text_input="Menu", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
@@ -656,5 +890,6 @@ def game_over():
 
 
 menu()
+
 
 pygame.quit()
