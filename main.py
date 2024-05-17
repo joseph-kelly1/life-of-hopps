@@ -271,9 +271,11 @@ class Enemy(pygame.sprite.Sprite):
                 bullet.bullet_lifetime = 0  # Remove the bullet
 
     def check_alive(self):
-        global dice_level_bar
+        global dice_level_bar, score
         if self.health <= 0:
             self.kill()
+            if isEndless == True:
+                score += 100
             if not(total_level_enemies %2 == 0):
                 dice_level_bar.hp += (100/total_level_enemies + 1)
             else:
@@ -374,6 +376,8 @@ dice_level_bar.hp = 0
 dice_level = 1
 level = 1
 total_level_enemies = 0
+score = 0
+isEndless = False
 
 sprites_group.add(hopps)
 
@@ -383,17 +387,18 @@ def loadlevel(level):
     current_level = levels[level-1]
 
     for i in range(current_level["spiders"]):
-        spider = Enemy((random.randint(0, 2048),random.randint(0, 1408)), spider_image)
+        spider = Enemy((random.randint(0, 2048), random.randint(0, 1408)), spider_image)
+
         sprites_group.add(spider)
         enemy_group.add(spider)
         total_level_enemies += 1
     for i in range(current_level["beetles"]):
-        beetle = Enemy((random.randint(0, 2048),random.randint(0, 1408)), beetle_image)
+        beetle = Enemy((random.randint(0, 2048), random.randint(0, 1408)), beetle_image)
         sprites_group.add(beetle)
         enemy_group.add(beetle)
         total_level_enemies += 1
     for i in range(current_level["stinkbugs"]):
-        stinkbug = Enemy((random.randint(0, 2048),random.randint(0, 1408)), stinkbug_image)
+        stinkbug = Enemy((random.randint(0, 2048), random.randint(0, 1408)), stinkbug_image)
         sprites_group.add(stinkbug)
         enemy_group.add(stinkbug)
         total_level_enemies += 1
@@ -402,25 +407,44 @@ def loadlevel(level):
 
 loadlevel(level)
 
+def game_over_endless(new_level):
+    global total_level_enemies
+    for i in range(new_level):
+        spider = Enemy((random.randint(0, 2048), random.randint(0, 1408)), spider_image)
+        sprites_group.add(spider)
+        enemy_group.add(spider)
+        total_level_enemies += 1
+    for i in range(new_level):
+        beetle = Enemy((random.randint(0, 2048), random.randint(0, 1408)), beetle_image)
+        sprites_group.add(beetle)
+        enemy_group.add(beetle)
+        total_level_enemies += 1
+    for i in range(new_level):
+        stinkbug = Enemy((random.randint(0, 2048), random.randint(0, 1408)), stinkbug_image)
+        sprites_group.add(stinkbug)
+        enemy_group.add(stinkbug)
+        total_level_enemies += 1
 
 
 def restart():
-    global camera, hopps, sprites_group, level, dice_level, dice_level_bar, total_level_enemies
+    global camera, hopps, sprites_group, level, dice_level, dice_level_bar, total_level_enemies, score, isEndless
     hopps = Hopps()
     hopps.shoot_cooldown = 80
     health_bar.hp = 100
     dice_level = 1
     dice_level_bar.hp = 0
     total_level_enemies = 0
+    score = 0
+    isEndless = False
 
     camera = Camera()
 
     sprites_group.empty()
     enemy_group.empty()
+    bullet_group.empty()
     sprites_group.add(hopps)
     level = 1
     loadlevel(level)
-
 
 
 def menu():
@@ -498,10 +522,15 @@ def run():
         screen.blit(ui_bar, ((2048 - WIDTH) / -2, 0))
 
         health_bar.draw(screen)
-        draw_text("Level: " + str(level), get_font(25), "black", 20, 80)
+        if level < 11:
+            draw_text("Level: " + str(level), get_font(25), "black", 20, 80)
+        else:
+            draw_text("Level: " + "Endless", get_font(25), "black", 20, 80)
         dice_level_bar.draw(screen)
-        draw_text("Dice Level:" + str(dice_level), get_font(25), "black", 1020, 80)
-
+        if dice_level < 5:
+            draw_text("Dice Level:" + str(dice_level), get_font(25), "black", 1020, 80)
+        else:
+            draw_text("Dice Level: Max", get_font(20), "black", 1020, 80)
 
 
 
@@ -528,6 +557,8 @@ def run():
             level += 1
             if level <= 10:
                 loadlevel(level)
+            else:
+                game_won()
 
         if dice_level_bar.hp == 100 and dice_level < 5:
             dice_level += 1
@@ -756,6 +787,9 @@ def game_over_levels():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    menu()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if menu_button.checkForInput(GAME_OVER_MOUSE_POS):
                     menu()
@@ -766,8 +800,160 @@ def game_over_levels():
         clock.tick(FPS)
         pygame.display.update()
 
+def game_won():
+    global health_bar, isEndless
+    while True:
+        GAME_WON_MOUSE_POS = pygame.mouse.get_pos()
+
+        screen.fill((0, 0, 0))
+        game_won_text = Button(None, pos=((WIDTH / 2), 250),
+                             text_input="You Won!", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
+        continue_text = Button(None, pos=((WIDTH / 2), 400),
+                               text_input="Would You Like to Continue?", font=get_font(50), base_color="White", hovering_color="#d7fcd4")
+
+        endless_button = Button(None, pos=((WIDTH / 2), 520),
+                             text_input="Endless", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        menu_button = Button(None, pos=((WIDTH / 2), 600),
+                             text_input="Menu", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        exit_button = Button(None, pos=((WIDTH / 2), 680),
+                             text_input="Exit", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        endless_button.changeColor(GAME_WON_MOUSE_POS)
+        endless_button.update(screen)
+
+        menu_button.changeColor(GAME_WON_MOUSE_POS)
+        menu_button.update(screen)
+
+        exit_button.changeColor(GAME_WON_MOUSE_POS)
+        exit_button.update(screen)
+
+
+
+        game_won_text.update(screen)
+        continue_text.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    health_bar.hp = 100
+                    isEndless = True
+                    endless()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if endless_button.checkForInput(GAME_WON_MOUSE_POS):
+                    health_bar.hp = 100
+                    isEndless = True
+                    endless()
+                if menu_button.checkForInput(GAME_WON_MOUSE_POS):
+                    menu()
+                if exit_button.checkForInput(GAME_WON_MOUSE_POS):
+                    pygame.quit()
+                    sys.exit()
+
+
+        pygame.display.update()
+
+def endless():
+    global level
+    global dice_level
+    global dice_level_bar
+
+    while True:
+        RUN_MOUSE_POS = pygame.mouse.get_pos()
+
+        screen.fill((0, 0, 0))
+
+        camera.custom_draw()
+        screen.blit(ui_bar, ((2048 - WIDTH) / -2, 0))
+
+        health_bar.draw(screen)
+        draw_text("Level: " + str(level), get_font(25), "black", 20, 80)
+        dice_level_bar.draw(screen)
+        draw_text("Score:" + str(score), get_font(25), "black", 1020, 80)
+
+        pause_button = Button(pause_icon, pos=(WIDTH - 60, 60),
+                              text_input="", font=get_font(20), base_color="black", hovering_color="#d7fcd4")
+
+        pause_button.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pause()
+                if event.key == pygame.K_r:
+                    menu()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if pause_button.checkForInput(RUN_MOUSE_POS):
+                    pause()
+
+        if not enemy_group:
+            game_over_endless(level)
+
+        if dice_level_bar.hp == 100 and dice_level < 5:
+            dice_level += 1
+            if dice_level < 5:
+                dice_level_bar.hp = 0
+
+        sprites_group.update()
+        hopps.update()
+
+        clock.tick(FPS)
+        pygame.display.update()
+
+        if health_bar.hp <= 0:
+            game_over()
+
+def game_over():
+
+    while True:
+        GAME_OVER_MOUSE_POS = pygame.mouse.get_pos()
+        screen.fill((0, 0, 0))
+        game_over_text = Button(None, pos=((WIDTH / 2), 250),
+                             text_input="Game Over", font=get_font(75), base_color="White", hovering_color="#d7fcd4")
+
+        score_text = Button(None, pos=((WIDTH / 2), 400),
+                             text_input="Score: "+ str(score), font=get_font(60), base_color="White", hovering_color="#d7fcd4")
+
+        menu_button = Button(None, pos=((WIDTH / 2)-200, 540),
+                                text_input="Menu", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        exit_button = Button(None, pos=((WIDTH / 2)+200, 540),
+                                text_input="Exit", font=get_font(40), base_color="White", hovering_color="#d7fcd4")
+
+        game_over_text.update(screen)
+
+        score_text.update(screen)
+
+        menu_button.changeColor(GAME_OVER_MOUSE_POS)
+        menu_button.update(screen)
+
+        exit_button.changeColor(GAME_OVER_MOUSE_POS)
+        exit_button.update(screen)
+
+        for event in pygame.event.get():
+            # quit program
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if menu_button.checkForInput(GAME_OVER_MOUSE_POS):
+                    menu()
+                if exit_button.checkForInput(GAME_OVER_MOUSE_POS):
+                    pygame.quit()
+                    sys.exit()
+
+        clock.tick(FPS)
+        pygame.display.update()
 
 menu()
-
 
 pygame.quit()
